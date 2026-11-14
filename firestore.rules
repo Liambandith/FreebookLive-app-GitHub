@@ -1,0 +1,190 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all reads/writes unless explicitly matched
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidPlatform(plat) {
+      return plat is string && (plat == 'Minecraft' || plat == 'Roblox' || plat == 'General');
+    }
+
+    function isValidConversation(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.peerUsername is string && data.peerUsername.size() >= 1 && data.peerUsername.size() <= 50 &&
+             isValidPlatform(data.gamePlatform) &&
+             (!('lobbyId' in data) || (data.lobbyId is string && data.lobbyId.size() <= 128)) &&
+             (!('inviteCode' in data) || (data.inviteCode is string && data.inviteCode.size() <= 32)) &&
+             data.lastMessage is string && data.lastMessage.size() <= 500 &&
+             data.unreadCount is int && data.unreadCount >= 0 && data.unreadCount <= 999 &&
+             data.isGroup is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPrivateMessage(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.conversationId is string && data.conversationId.size() >= 1 && data.conversationId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
+             data.isFromMe is bool &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1000 &&
+             isValidPlatform(data.gamePlatform) &&
+             (!('lobbyInviteCode' in data) || (data.lobbyInviteCode is string && data.lobbyInviteCode.size() <= 32)) &&
+             (!('lobbyTitle' in data) || (data.lobbyTitle is string && data.lobbyTitle.size() <= 80)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidSquadRoom(data) {
+      return data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             isValidPlatform(data.gamePlatform) &&
+             data.roomCode is string && data.roomCode.size() >= 3 && data.roomCode.size() <= 32 &&
+             data.roomCode.matches('^[a-zA-Z0-9_\\-]+$') &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 12 &&
+             (data.memberUids.size() == 0 || data.memberUids[0] is string) &&
+             data.lastMessage is string && data.lastMessage.size() <= 500 &&
+             data.lastSenderName is string && data.lastSenderName.size() <= 60 &&
+             data.isJoinableByCode is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSquadMessage(data) {
+      return data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1000 &&
+             isValidPlatform(data.gamePlatform) &&
+             (!('lobbyInviteCode' in data) || (data.lobbyInviteCode is string && data.lobbyInviteCode.size() <= 32)) &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 12 &&
+             (data.memberUids.size() == 0 || data.memberUids[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // User-scoped Messenger conversations & messages
+    match /users/{userId}/conversations/{conversationId} {
+      allow get: if isSignedIn() && isValidId(userId) && isValidId(conversationId) && request.auth.uid == userId;
+      allow list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidId(conversationId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'title', 'peerUsername', 'gamePlatform', 'lastMessage', 'unreadCount', 'isGroup', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'peerUsername', 'gamePlatform', 'lobbyId', 'inviteCode', 'lastMessage', 'unreadCount', 'isGroup', 'createdAt', 'updatedAt']) &&
+                       isValidConversation(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidId(conversationId) &&
+                       request.auth.uid == userId &&
+                       isValidConversation(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'lastMessage', 'unreadCount', 'lobbyId', 'inviteCode', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && isValidId(conversationId) && request.auth.uid == userId;
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(conversationId) && isValidId(messageId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(conversationId) &&
+                         isValidId(messageId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().conversationId == conversationId &&
+                         incoming().keys().hasAll(['userId', 'conversationId', 'senderName', 'isFromMe', 'text', 'gamePlatform', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'conversationId', 'senderName', 'isFromMe', 'text', 'gamePlatform', 'lobbyInviteCode', 'lobbyTitle', 'createdAt']) &&
+                         isValidPrivateMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/conversations/$(conversationId));
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(conversationId) && isValidId(messageId) && request.auth.uid == userId;
+      }
+    }
+
+    // Shared multi-user Squad Chat Rooms
+    match /squad_rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && request.auth.uid in existing().memberUids;
+      allow list: if isSignedIn() && request.auth.uid in existing().memberUids;
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().ownerId == request.auth.uid &&
+                       incoming().roomCode == roomId &&
+                       incoming().memberUids is list &&
+                       incoming().memberUids.size() == 1 &&
+                       incoming().memberUids[0] == request.auth.uid &&
+                       incoming().keys().hasAll(['ownerId', 'title', 'gamePlatform', 'roomCode', 'memberUids', 'lastMessage', 'lastSenderName', 'isJoinableByCode', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['ownerId', 'title', 'gamePlatform', 'roomCode', 'memberUids', 'lastMessage', 'lastSenderName', 'isJoinableByCode', 'createdAt', 'updatedAt']) &&
+                       isValidSquadRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidSquadRoom(incoming()) &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().roomCode == existing().roomCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (
+                           request.auth.uid in existing().memberUids &&
+                           incoming().memberUids == existing().memberUids &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderName', 'updatedAt'])
+                         ) ||
+                         (
+                           existing().isJoinableByCode == true &&
+                           !(request.auth.uid in existing().memberUids) &&
+                           request.auth.uid in incoming().memberUids &&
+                           incoming().memberUids.hasAll(existing().memberUids) &&
+                           incoming().memberUids.size() == existing().memberUids.size() + 1 &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && existing().ownerId == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId) && request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in existing().memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(messageId) &&
+                         incoming().senderUid == request.auth.uid &&
+                         incoming().roomId == roomId &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll(['roomId', 'senderUid', 'senderName', 'text', 'gamePlatform', 'memberUids', 'createdAt']) &&
+                         incoming().keys().hasOnly(['roomId', 'senderUid', 'senderName', 'text', 'gamePlatform', 'lobbyInviteCode', 'memberUids', 'createdAt']) &&
+                         isValidSquadMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/squad_rooms/$(roomId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/squad_rooms/$(roomId)).data.memberUids;
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(messageId) && existing().senderUid == request.auth.uid;
+      }
+    }
+  }
+}

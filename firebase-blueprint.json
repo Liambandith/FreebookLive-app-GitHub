@@ -1,0 +1,261 @@
+{
+  "entities": {
+    "ChatConversation": {
+      "title": "ChatConversation",
+      "description": "A user's direct friend or world messenger thread in FreebookLive.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title of the conversation."
+        },
+        "peerUsername": {
+          "type": "string",
+          "description": "Gaming username or squad label."
+        },
+        "gamePlatform": {
+          "type": "string",
+          "enum": ["Minecraft", "Roblox", "General"],
+          "description": "Game platform associated with this chat."
+        },
+        "lobbyId": {
+          "type": "string",
+          "description": "Optional linked lobby ID."
+        },
+        "inviteCode": {
+          "type": "string",
+          "description": "Optional world invite code."
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "Preview of the latest message."
+        },
+        "unreadCount": {
+          "type": "integer",
+          "description": "Count of unread messages."
+        },
+        "isGroup": {
+          "type": "boolean",
+          "description": "Whether this is a squad/group thread."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when conversation was created (written via FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest message (written via FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "peerUsername",
+        "gamePlatform",
+        "lastMessage",
+        "unreadCount",
+        "isGroup",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "An individual message inside a user's messenger conversation.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "conversationId": {
+          "type": "string",
+          "description": "Parent conversation document ID."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Display name or gamertag of the sender."
+        },
+        "isFromMe": {
+          "type": "boolean",
+          "description": "True if authored by the local signed-in player."
+        },
+        "text": {
+          "type": "string",
+          "description": "Message body text."
+        },
+        "gamePlatform": {
+          "type": "string",
+          "enum": ["Minecraft", "Roblox", "General"],
+          "description": "Associated game platform."
+        },
+        "lobbyInviteCode": {
+          "type": "string",
+          "description": "Optional attached lobby invite code."
+        },
+        "lobbyTitle": {
+          "type": "string",
+          "description": "Optional attached lobby world name."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when message was sent (written via FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "conversationId",
+        "senderName",
+        "isFromMe",
+        "text",
+        "gamePlatform",
+        "createdAt"
+      ]
+    },
+    "SquadRoom": {
+      "title": "SquadRoom",
+      "description": "Shared multi-user chat room for live Minecraft and Roblox squads.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Creator Firebase Auth UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Squad room title."
+        },
+        "gamePlatform": {
+          "type": "string",
+          "enum": ["Minecraft", "Roblox", "General"],
+          "description": "Target game platform."
+        },
+        "roomCode": {
+          "type": "string",
+          "description": "Joinable room code matching document ID."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Bounded list (max 12) of member UIDs."
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "Latest message preview."
+        },
+        "lastSenderName": {
+          "type": "string",
+          "description": "Display name of latest sender."
+        },
+        "isJoinableByCode": {
+          "type": "boolean",
+          "description": "Whether other signed-in friends can join using the room code."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "ownerId",
+        "title",
+        "gamePlatform",
+        "roomCode",
+        "memberUids",
+        "lastMessage",
+        "lastSenderName",
+        "isJoinableByCode",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SquadMessage": {
+      "title": "SquadMessage",
+      "description": "Message sent inside a shared multi-user squad chat room.",
+      "type": "object",
+      "properties": {
+        "roomId": {
+          "type": "string",
+          "description": "Parent squad room ID."
+        },
+        "senderUid": {
+          "type": "string",
+          "description": "Author Firebase Auth UID."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Author display name."
+        },
+        "text": {
+          "type": "string",
+          "description": "Message text content."
+        },
+        "gamePlatform": {
+          "type": "string",
+          "enum": ["Minecraft", "Roblox", "General"],
+          "description": "Associated game platform."
+        },
+        "lobbyInviteCode": {
+          "type": "string",
+          "description": "Optional attached lobby invite code."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Denormalized member UIDs for secure list evaluation."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when sent."
+        }
+      },
+      "required": [
+        "roomId",
+        "senderUid",
+        "senderName",
+        "text",
+        "gamePlatform",
+        "memberUids",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/conversations/{conversationId}": {
+      "schema": {
+        "$ref": "#/entities/ChatConversation"
+      },
+      "description": "User-scoped messenger conversations for friends and hosted worlds."
+    },
+    "/users/{userId}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/ChatMessage"
+      },
+      "description": "Messages inside a user-scoped messenger conversation."
+    },
+    "/squad_rooms/{roomId}": {
+      "schema": {
+        "$ref": "#/entities/SquadRoom"
+      },
+      "description": "Shared multi-user squad chat rooms joined by room code."
+    },
+    "/squad_rooms/{roomId}/messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/SquadMessage"
+      },
+      "description": "Real-time messages inside a shared squad chat room."
+    }
+  }
+}

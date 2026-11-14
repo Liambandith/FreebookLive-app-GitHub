@@ -1,0 +1,6 @@
+{
+  "name": "FreebookLive",
+  "description": "Minecraft and Roblox multiplayer lobby hub for friends to join worlds, host their own worlds, and manage access and player stats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
